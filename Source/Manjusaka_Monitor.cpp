@@ -5,6 +5,10 @@
 #include <thread>
 #include <cstdlib>
 #include <sys/stat.h>
+
+#include <boost/property_tree/ini_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+
 // 配置文件路径
 std::string Manjusaka_conf_path = "/data/media/0/Android/Manjusaka/Manjusaka.conf";
 
@@ -39,36 +43,40 @@ void check_loop(std::string Set_Time, std::string Creen_script, std::string Scre
 int main() {
     std::string Set_Time, Creen_script, Screen_script;
     {
-        std::ifstream infile(Manjusaka_conf_path);
-        if (!infile.good()) {
-            // 创建默认配置文件
+        // 读取配置文件
+        boost::property_tree::ptree pt;
+        boost::property_tree::ini_parser::read_ini(Manjusaka_conf_path, pt);
+
+        // 获取设置项
+        Set_Time = pt.get<std::string>("Settings.Set_Time", "1");
+        Creen_script = pt.get<std::string>("Scripts.Creen_script", "/data/off.sh");
+        Screen_script = pt.get<std::string>("Scripts.Screen_script", "/data/on.sh");
+
+        // 如果配置文件不存在，则创建并写入默认配置
+        std::ofstream outfile;
+        struct stat st = {0};
+        if (stat("/data/media/0/Android/Manjusaka", &st) == -1) {
             mkdir("/data/media/0/Android/Manjusaka", 0777);
-            std::ofstream outfile(Manjusaka_conf_path);
-            outfile << "# Author:Manjusaka(酷安@曼珠沙华Y)" << std::endl;
-            outfile << "# Group:647299031" << std::endl;
-            outfile << "# QQ:898780441" << std::endl;
-            outfile << "# 设置屏幕关闭多长时间执行" << std::endl;
-            outfile << "Set_Time=1" << std::endl;
-            outfile << "# 屏幕关闭后执行的脚本" << std::endl;
-            outfile << "Creen_script=/data/off.sh" << std::endl;
-            outfile << "# 屏幕开启后执行的脚本" << std::endl;
-            outfile << "Screen_script=/data/on.sh" << std::endl;
+        }
+        if (!std::ifstream(Manjusaka_conf_path)) {
+            outfile = std::ofstream(Manjusaka_conf_path);
+            outfile << "; Author:Manjusaka(酷安@曼珠沙华Y)\n";
+            outfile << "; Group:647299031\n";
+            outfile << "; QQ:898780441\n";
+            outfile << "\n";
+            outfile << "[Settings]\n";
+            outfile << "; 设置屏幕关闭多长时间执行\n";
+            outfile << "Set_Time=1\n";
+            outfile << "\n";
+            outfile << "[Scripts]\n";
+            outfile << "; 屏幕关闭后执行的脚本\n";
+            outfile << "Creen_script=/data/off.sh\n";
+            outfile << "; 屏幕开启后执行的脚本\n";
+            outfile << "Screen_script=/data/on.sh\n";
             outfile.close();
         }
-
-        std::ifstream fconf(Manjusaka_conf_path);
-        std::string line;
-        while (std::getline(fconf, line)) {
-            if (line.find("Set_Time=") != std::string::npos) {
-                Set_Time = line.substr(line.find("=") + 1);
-            } else if (line.find("Creen_script=") != std::string::npos) {
-                Creen_script = line.substr(line.find("=") + 1);
-            } else if (line.find("Screen_script=") != std::string::npos) {
-                Screen_script = line.substr(line.find("=") + 1);
-            }
-        }
-        fconf.close();
     }
+
     // 设置配置文件权限为755
     system(("chmod 755 " + Manjusaka_conf_path).c_str());
     std::thread t(check_loop, Set_Time, Creen_script, Screen_script);
@@ -80,4 +88,3 @@ int main() {
 
     return 0;
 }
-
